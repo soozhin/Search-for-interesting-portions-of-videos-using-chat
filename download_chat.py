@@ -28,14 +28,14 @@ def time_it(func):
 
 
 @time_it
-def get_chat_in_dataframe(url):
-    """
+def get_chat_in_dataframe(url: str):
+    """ Download chat from the given url, take time_in_seconds and messages from chat, turn it into a pandas dataframe
 
     Args:
-        url:
+        url: A YouTube live stream video link
 
     Returns:
-
+        A pandas dataframe that contains time_in_seconds and message
     """
     chat = ChatDownloader().get_chat(url)
     chat_dict = {
@@ -52,7 +52,15 @@ def get_chat_in_dataframe(url):
 
 
 @time_it
-def run(urls):
+def download_and_save_chat_as_csv(urls: list):
+    """Download chats from the url(s) given
+
+    Args:
+        urls: A list of link(s) to YouTube live stream videos
+
+    Returns:
+
+    """
     chats_folder = r'./chats'
     os.makedirs(chats_folder, exist_ok=True)
 
@@ -64,6 +72,7 @@ def run(urls):
 
 
 if __name__ == '__main__':
+    # List of urls for debugging purposes
     # urls = ['https://www.youtube.com/watch?v=S8906cHW08g', 'https://www.youtube.com/watch?v=Xp-RgFrGGpg&t']
     urls = ['https://www.youtube.com/watch?v=S8906cHW08g']
-    run(urls)
+    download_and_save_chat_as_csv(urls)
