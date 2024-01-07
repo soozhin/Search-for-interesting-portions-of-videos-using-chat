@@ -1,7 +1,7 @@
 import yt_dlp
 import os
 
-def download_youtube_video(url):
+def download_youtube_video(url: str):
     output_dir = r'./videos'
     os.makedirs(output_dir, exist_ok=True)
 
