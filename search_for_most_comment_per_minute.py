@@ -1,13 +1,11 @@
-import os.path
-
+import os
+import pandas
 import pandas as pd
 import time
 import matplotlib.pyplot as plt
 import japanize_matplotlib
-from glob import glob
-from tqdm import tqdm
-from chat_downloader import ChatDownloader
 from pathlib import Path
+from scipy.ndimage.filters import gaussian_filter1d
 
 
 def time_it(func):
@@ -33,28 +31,7 @@ def time_it(func):
 
 
 @time_it
-def get_all_message_from_chat_in_dataframe(chat):
-    """Return time_in_seconds and message from chat in dataframe form
-
-    Args:
-        chat: A chat object that includes time_in_seconds and message
-
-    Returns:
-        time_in_seconds and message from chat in dataframe form
-    """
-    chat_dict = {
-        'time_in_seconds': [],
-        'message': [],
-    }
-    for message in tqdm(chat):
-        chat_dict['time_in_seconds'].append(message['time_in_seconds'])
-        chat_dict['message'].append(message['message'])
-    chat_dataframe = pd.DataFrame(chat_dict)
-    return chat_dataframe
-
-
-@time_it
-def get_number_of_comments_per_minute(chat_dataframe):
+def get_number_of_comments_per_minute(chat_dataframe: pandas.DataFrame):
     """Return a dataframe of number of comments per minute
 
     Args:
@@ -79,6 +56,7 @@ def get_number_of_comments_per_minute(chat_dataframe):
         else:
             count += 1
 
+    # Append all the remaining items
     if count > 0:
         number_of_comments_per_minute['time_in_seconds'].append(current_time_in_seconds)
         number_of_comments_per_minute['number_of_comments'].append(count)
@@ -87,27 +65,114 @@ def get_number_of_comments_per_minute(chat_dataframe):
 
 
 @time_it
-def run():
-    # TODO: Currently only testing out on 1 youtube video. Might need to expand this to be able to handle multiple videos from miltiple streamers
-    url = 'https://www.youtube.com/watch?v=Xp-RgFrGGpg&t'
-    # TODO: Comment out for debug purposes. Might need to uncomment in future
-    # video_path = download_youtube_video(url)
+def get_number_of_comments_per_unit_time_seconds(chat_dataframe: pandas.DataFrame, unit_time_seconds: int = 60):
+    """Return a dataframe of number of comments per unit time in seconds
 
-    # Download the chat from the stream
-    # TODO: Do not need to download everytime anymore because I implemented this in another python script.
-    # chat = ChatDownloader().get_chat(url)
-    # chat_dataframe = get_all_message_from_chat_in_dataframe(chat)
+    Args:
+        chat_dataframe: A panda dataframe that contains time_in_seconds and message
+        unit_time_seconds:
+            Duration in seconds used to count the number of comments.
+            For example, unit_time_seconds = 30 will count the number of comments for every 30 seconds.
+            Defaults to 60 seconds
 
+    Returns:
+        A dataframe of number of comments per unit time in seconds
+    """
+    number_of_comments_per_minute = {
+        'time_in_seconds': [],
+        'number_of_comments': [],
+    }
+    current_time_in_seconds = chat_dataframe['time_in_seconds'][0]
+    count = 0
+
+    for index in range(len(chat_dataframe)):
+        if chat_dataframe['time_in_seconds'][index] > (current_time_in_seconds + unit_time_seconds):
+            number_of_comments_per_minute['time_in_seconds'].append(current_time_in_seconds)
+            number_of_comments_per_minute['number_of_comments'].append(count)
+            current_time_in_seconds = chat_dataframe['time_in_seconds'][index]
+            count = 0
+        else:
+            count += 1
+
+    # Append all the remaining items
+    if count > 0:
+        number_of_comments_per_minute['time_in_seconds'].append(current_time_in_seconds)
+        number_of_comments_per_minute['number_of_comments'].append(count)
+
+    return pd.DataFrame(number_of_comments_per_minute)
+
+
+@time_it
+def plot_bar_graph_of_number_of_comments_per_unit_time_in_seconds(
+        number_of_comments_per_unit_time_seconds: pandas.DataFrame,
+        unit_time_seconds: int):
+    """Plot and save the bar graph of the number of comments against time
+
+    Args:
+        number_of_comments_per_unit_time_seconds: A pandas dataframe that consists of time_in_seconds and messages
+        unit_time_seconds: Duration in seconds used to plot the number of comments.
+            This should be the same as the unit_time_seconds used in the
+            function [get_number_of_comments_per_unit_time_seconds]
+
+    Returns:
+
+    """
+    output_dir = r'./plots'
+    os.makedirs(output_dir, exist_ok=True)
+
+    plot_title = f'Bar graph of number of comments per [{unit_time_seconds}s] for [{video_title}]'
+    x_axis = list(number_of_comments_per_unit_time_seconds['time_in_seconds'])
+    y_axis = list(number_of_comments_per_unit_time_seconds['number_of_comments'])
+    plt.bar(x_axis, y_axis, width=unit_time_seconds)
+    plt.title(plot_title, wrap=True)
+    plt.xlabel('Time(s)')
+    plt.ylabel('Number of comments')
+    plot_filename = plot_title
+    plot_filepath = os.path.join(output_dir, plot_filename)
+    plt.savefig(plot_filepath)
+    plt.figure()
+
+
+@time_it
+def plot_line_graph_of_number_of_comments_per_unit_time_in_seconds(
+        number_of_comments_per_unit_time_seconds: pandas.DataFrame,
+        unit_time_seconds: int):
+    """Plot and save the line graph of the number of comments against time
+
+    Args:
+        number_of_comments_per_unit_time_seconds: A pandas dataframe that consists of time_in_seconds and messages
+        unit_time_seconds: Duration in seconds used to plot the number of comments.
+            This should be the same as the unit_time_seconds used in the
+            function [get_number_of_comments_per_unit_time_seconds]
+
+    Returns:
+
+    """
+    output_dir = r'./plots'
+    os.makedirs(output_dir, exist_ok=True)
+
+    plot_title = f'Line graph (smoothened, sigma=2) of number of comments per [{unit_time_seconds}s] for [{video_title}]'
+    x_axis = list(number_of_comments_per_unit_time_seconds['time_in_seconds'])
+    y_axis = list(number_of_comments_per_unit_time_seconds['number_of_comments'])
+    y_smoothed = gaussian_filter1d(y_axis, sigma=2)
+    plt.plot(x_axis, y_smoothed)
+    plt.title(plot_title, wrap=True)
+    plt.xlabel('Time(s)')
+    plt.ylabel('Number of comments')
+    plot_filename = plot_title
+    plot_filepath = os.path.join(output_dir, plot_filename)
+    plt.savefig(plot_filepath)
+    plt.figure()
+
+
+if __name__ == '__main__':
     chat_filepath = r'./chats/100万人ありがとよ！しぐれうい丸わかりスペシャル.csv'
     video_title = Path(chat_filepath).stem
     chat_dataframe = pd.read_csv(chat_filepath)
+    unit_time_seconds_list = [1, 5, 10, 15, 20, 30, 60]
 
-    # Create a dataframe with time in minute and number of comments
-    number_of_comments_per_minute = get_number_of_comments_per_minute(chat_dataframe)
-    number_of_comments_per_minute['number_of_comments'].plot()
-    plt.title(f'Graph of number of comments per minute for [{video_title}]')
-    plot_filepath = rf'Graph_of_number_of_comments_per_minute_for_{video_title}'
-    plt.savefig(plot_filepath)
-
-if __name__ == '__main__':
-    run()
+    for unit_time_seconds in unit_time_seconds_list:
+        number_of_comments_per_unit_time_seconds = get_number_of_comments_per_unit_time_seconds(chat_dataframe,
+                                                                                                unit_time_seconds)
+        plot_line_graph_of_number_of_comments_per_unit_time_in_seconds(number_of_comments_per_unit_time_seconds,
+                                                                       unit_time_seconds)
