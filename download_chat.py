@@ -43,7 +43,7 @@ def get_chat_in_dataframe(url: str):
         'message': [],
     }
 
-    for message in tqdm(chat):
+    for message in chat:
         chat_dict['time_in_seconds'].append(message['time_in_seconds'])
         chat_dict['message'].append(message['message'])
     chat_dataframe = pd.DataFrame(chat_dict)
@@ -64,7 +64,7 @@ def download_and_save_chat_as_csv(urls: list):
     chats_folder = r'./chats'
     os.makedirs(chats_folder, exist_ok=True)
 
-    for url in urls:
+    for url in tqdm(urls, total=len(urls)):
         chat_dataframe, video_title = get_chat_in_dataframe(url)
         video_title = video_title.replace('/', '')
         filepath = os.path.join(chats_folder, video_title)
