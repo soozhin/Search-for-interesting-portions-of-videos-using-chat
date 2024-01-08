@@ -3,7 +3,11 @@ import pandas
 import pandas as pd
 import time
 import matplotlib.pyplot as plt
+from matplotlib.ticker import FuncFormatter
 import japanize_matplotlib
+import glob
+from tqdm import tqdm
+from datetime import timedelta
 from pathlib import Path
 from scipy.ndimage.filters import gaussian_filter1d
 
@@ -102,6 +106,14 @@ def get_number_of_comments_per_unit_time_seconds(chat_dataframe: pandas.DataFram
     return pd.DataFrame(number_of_comments_per_minute)
 
 
+def format_func(x, pos):
+    hours = int(x // 3600)
+    minutes = int((x % 3600) // 60)
+    seconds = int(x % 60)
+
+    # return "{:d}:{:02d}:{:02d}".format(hours, minutes, seconds)
+
+
 @time_it
 def plot_bar_graph_of_number_of_comments_per_unit_time_in_seconds(
         number_of_comments_per_unit_time_seconds: pandas.DataFrame,
@@ -152,27 +164,43 @@ def plot_line_graph_of_number_of_comments_per_unit_time_in_seconds(
     os.makedirs(output_dir, exist_ok=True)
 
     plot_title = f'Line graph (smoothened, sigma=2) of number of comments per [{unit_time_seconds}s] for [{video_title}]'
+
     x_axis = list(number_of_comments_per_unit_time_seconds['time_in_seconds'])
+    x_axis_hhmmss = [(timedelta(seconds=second)) for second in x_axis]
+
     y_axis = list(number_of_comments_per_unit_time_seconds['number_of_comments'])
     y_smoothed = gaussian_filter1d(y_axis, sigma=2)
-    plt.plot(x_axis, y_smoothed)
-    plt.title(plot_title, wrap=True)
-    plt.xlabel('Time(s)')
-    plt.ylabel('Number of comments')
-    plot_filename = plot_title
-    plot_filepath = os.path.join(output_dir, plot_filename)
-    plt.savefig(plot_filepath)
-    plt.figure()
+
+    fig, ax = plt.subplots(1)
+    ax.plot(x_axis, y_smoothed)
+
+    formatter = FuncFormatter(format_func)
+    ax.xaxis.set_major_formatter(formatter)
+
+    # plt.figure(figsize=(15,10))
+    # plt.grid()
+    # plt.plot(x_axis, y_smoothed)
+    # plt.title(plot_title, wrap=True)
+    # plt.locator_params(axis='x', nbins=10)
+    # plt.xlabel('Time(s)')
+    # plt.ylabel('Number of comments')
+    # plot_filename = plot_title
+    # plot_filepath = os.path.join(output_dir, plot_filename)
+    # plt.savefig(plot_filepath)
+    # plt.figure()
 
 
 if __name__ == '__main__':
-    chat_filepath = r'./chats/100万人ありがとよ！しぐれうい丸わかりスペシャル.csv'
-    video_title = Path(chat_filepath).stem
-    chat_dataframe = pd.read_csv(chat_filepath)
-    unit_time_seconds_list = [1, 5, 10, 15, 20, 30, 60]
 
-    for unit_time_seconds in unit_time_seconds_list:
-        number_of_comments_per_unit_time_seconds = get_number_of_comments_per_unit_time_seconds(chat_dataframe,
-                                                                                                unit_time_seconds)
-        plot_line_graph_of_number_of_comments_per_unit_time_in_seconds(number_of_comments_per_unit_time_seconds,
-                                                                       unit_time_seconds)
+    all_chat_paths = glob.glob('./chats/*.csv')
+
+    for chat_filepath in tqdm(all_chat_paths, total=len(all_chat_paths)):
+        video_title = Path(chat_filepath).stem
+        chat_dataframe = pd.read_csv(chat_filepath)
+        unit_time_seconds_list = [60]
+
+        for unit_time_seconds in unit_time_seconds_list:
+            number_of_comments_per_unit_time_seconds = get_number_of_comments_per_unit_time_seconds(chat_dataframe,
+                                                                                                    unit_time_seconds)
+            plot_line_graph_of_number_of_comments_per_unit_time_in_seconds(number_of_comments_per_unit_time_seconds,
+                                                                           unit_time_seconds)
