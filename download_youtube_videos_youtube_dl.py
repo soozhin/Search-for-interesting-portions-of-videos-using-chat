@@ -1,7 +1,17 @@
 import yt_dlp
 import os
 
+
 def download_youtube_video(url: str):
+    """Download YouTube video into [./videos] folder
+
+    Args:
+        url: Link to the YouTube video
+
+    Returns:
+        The saved video path if the YouTube video is downloaded successfully.
+        Return [None] if download is not successful.
+    """
     output_dir = r'./videos'
     os.makedirs(output_dir, exist_ok=True)
 
@@ -12,6 +22,7 @@ def download_youtube_video(url: str):
 
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         try:
+            # Download the video
             info = ydl.extract_info(url, download=True)
             # Fetch the title from the downloaded video metadata
             video_title = info.get('title', 'Title Not Found')
